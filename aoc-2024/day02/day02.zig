@@ -61,11 +61,11 @@ pub fn main() !void {
     var file = try std.fs.cwd().openFile("input.txt", .{});
     defer file.close();
 
-    var bufferedReader = std.io.bufferedReader(file.reader());
-    var stream = bufferedReader.reader();
+    var buffered_reader = std.io.bufferedReader(file.reader());
+    var stream = buffered_reader.reader();
 
-    var totallySafeCount: i32 = 0;
-    var stillSafeCount: i32 = 0;
+    var totally_safe_count: i32 = 0;
+    var still_safe_count: i32 = 0;
 
     var buf: [128]u8 = undefined;
     while (try stream.readUntilDelimiterOrEof(&buf, '\n')) |line| {
@@ -74,16 +74,16 @@ pub fn main() !void {
             std.posix.exit(1);
         }) {
             SafetyLevel.safe => {
-                totallySafeCount += 1;
-                stillSafeCount += 1;
+                totally_safe_count += 1;
+                still_safe_count += 1;
             },
             SafetyLevel.still_safe => {
-                stillSafeCount += 1;
+                still_safe_count += 1;
             },
             SafetyLevel.unsafe => {},
         }
     }
 
-    try stdout.print("Result 1: {d}\n", .{totallySafeCount});
-    try stdout.print("Result 2: {d}\n", .{stillSafeCount});
+    try stdout.print("Result 1: {d}\n", .{totally_safe_count});
+    try stdout.print("Result 2: {d}\n", .{still_safe_count});
 }
