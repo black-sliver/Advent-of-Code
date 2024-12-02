@@ -1,0 +1,10 @@
+# IDE files
+.idea
+
+# aoc input
+input.txt
+sample-input.txt
+testinput.txt
+
+# temp
+*~

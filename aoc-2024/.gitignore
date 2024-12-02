@@ -1,0 +1,8 @@
+# toolchain test
+/hello.zig
+
+# output
+zig-out/
+
+# cahce
+.zig-cache/
