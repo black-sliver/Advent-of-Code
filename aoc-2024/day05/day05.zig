@@ -33,10 +33,7 @@ fn hasPair(haystack: []const [2]i32, needle: [2]i32) bool {
 
 fn printBefore(orderings: []const [2]i32, lhs: i32, rhs: i32) bool {
     // returns true if lhs should be printed before rhs
-    if (hasPair(orderings, .{lhs, rhs})) {
-        return true;
-    }
-    return false;
+    return hasPair(orderings, .{lhs, rhs});
 }
 
 fn order(update: []i32, orderings: []const [2]i32) void {
