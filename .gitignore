@@ -6,5 +6,9 @@ input.txt
 sample-input.txt
 testinput.txt
 
+# build output
+*.o
+*.wasm
+
 # temp
 *~
