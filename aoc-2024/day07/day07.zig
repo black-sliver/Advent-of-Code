@@ -19,16 +19,20 @@ pub fn NumberYielder(comptime T: type, comptime final_op: Operation, comptime ma
         limit: u64,
         done: bool,
 
-        pub fn init(numbers: []const T, limit: u64) !Self {
+        pub fn init(numbers: []const T, limit: u64, skip_add_mul: bool) !Self {
             if (numbers.len > max_numbers)
                 return error.OverflowError;
 
-            return Self{
+            var res = Self{
                 .numbers = numbers,
                 .ops = [_]Operation{Operation.Add} ** (max_numbers - 1),
                 .limit = limit,
                 .done = false,
             };
+            if (skip_add_mul) {
+                res.ops[0] = Operation.Concat;
+            }
+            return res;
         }
 
         pub fn next(self: *Self) ?u64 {
@@ -116,7 +120,7 @@ pub fn NumberYielder(comptime T: type, comptime final_op: Operation, comptime ma
 
 fn canBeSolvedWithoutConcat(result: u64, numbers: []const u32) !bool {
     // part1 rules
-    var it = try NumberYielder(u32, Operation.Multiply, 17).init(numbers, result);
+    var it = try NumberYielder(u32, Operation.Multiply, 17).init(numbers, result, false);
     while (it.next()) |res| {
         if (res == result) {
             return true;
@@ -127,7 +131,7 @@ fn canBeSolvedWithoutConcat(result: u64, numbers: []const u32) !bool {
 
 fn canBeSolvedWithConcat(result: u64, numbers: []const u32) !bool {
     // part2 rules
-    var it = try NumberYielder(u32, Operation.Concat, 17).init(numbers, result);
+    var it = try NumberYielder(u32, Operation.Concat, 17).init(numbers, result, true);
     while (it.next()) |res| {
         if (res == result) {
             return true;
