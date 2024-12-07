@@ -87,11 +87,11 @@ pub fn part1(allocator: std.mem.Allocator, obstacles: std.ArrayList(DynamicBitSe
 
 pub fn part2(allocator: std.mem.Allocator, obstacles: std.ArrayList(DynamicBitSet), start_x: usize, start_y: usize) !i32 {
     // the naive approach
-    const limit: usize = 20000;
-    const res1 = try part1(allocator, obstacles, start_x, start_y, limit);
-    var res2: i32 = 0;
     const height = obstacles.items.len;
     const width = obstacles.items[0].capacity();
+    const limit: usize = @intCast(width * height * 2);
+    const res1 = try part1(allocator, obstacles, start_x, start_y, limit);
+    var res2: i32 = 0;
     for (0..height) |y| {
         for (0..width) |x| {
             if (res1.visited.items[y].isSet(x)
