@@ -1,6 +1,7 @@
 const std = @import("std");
 const fmt = std.fmt;
 const mem = std.mem;
+const assert = std.debug.assert;
 const DynamicBitSet = std.DynamicBitSet;
 
 const Direction = enum {
@@ -10,11 +11,11 @@ const Direction = enum {
     Left,
 };
 
+/// returns number of unique tiles visisted and the bits
 pub fn part1(allocator: std.mem.Allocator, obstacles: std.ArrayList(DynamicBitSet), start_x: usize, start_y: usize, max_step: usize) !struct {
         count: i32,
         visited: std.ArrayList(DynamicBitSet)
 } {
-    // returns number of unique tiles visisted and the bits
     var x = start_x;
     var y = start_y;
     var dir = Direction.Up;
@@ -85,18 +86,23 @@ pub fn part1(allocator: std.mem.Allocator, obstacles: std.ArrayList(DynamicBitSe
     return .{.count=num_visited, .visited=visited};
 }
 
+/// returns number of spots an obstacle can be placed at to generate a loop
 pub fn part2(allocator: std.mem.Allocator, obstacles: std.ArrayList(DynamicBitSet), start_x: usize, start_y: usize) !i32 {
     // the naive approach
     const height = obstacles.items.len;
     const width = obstacles.items[0].capacity();
-    const limit: usize = @intCast(width * height * 2);
+    var num_obstacles: usize = 0;
+    for (obstacles.items) |row| {
+        num_obstacles += row.count();
+    }
+    const limit: usize = @intCast(width * height * 2 - num_obstacles);
     const res1 = try part1(allocator, obstacles, start_x, start_y, limit);
     var res2: i32 = 0;
     for (0..height) |y| {
         for (0..width) |x| {
             if (res1.visited.items[y].isSet(x)
-                    and !obstacles.items[y].isSet(x)
                     and (x != start_x or y != start_y)) {
+                assert(!obstacles.items[y].isSet(x));
                 obstacles.items[y].set(x);
                 _ = part1(allocator, obstacles, start_x, start_y, limit) catch |e| {
                     switch (e) {
