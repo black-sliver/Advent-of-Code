@@ -95,7 +95,7 @@ pub fn part2(allocator: std.mem.Allocator, obstacles: std.ArrayList(DynamicBitSe
     for (obstacles.items) |row| {
         num_obstacles += row.count();
     }
-    const limit: usize = @intCast(width * height * 2 - num_obstacles);
+    const limit: usize = @intCast(width * height * 2 - num_obstacles * 2);
     const res1 = try part1(allocator, obstacles, start_x, start_y, limit);
     var res2: i32 = 0;
     for (0..height) |y| {
