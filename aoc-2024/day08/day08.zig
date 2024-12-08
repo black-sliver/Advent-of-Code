@@ -30,10 +30,14 @@ const CoordMap = std.AutoHashMap(u8, std.ArrayList(Coord));
 
 fn countAntinodesWrong(allocator: mem.Allocator, width: usize, height: usize, antennas: CoordMap) !usize {
     // part1
-    var antinodes = std.ArrayList(std.DynamicBitSet).init(allocator);
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    defer arena.deinit();
+    const arena_allocator = arena.allocator();
+
+    var antinodes = std.ArrayList(std.DynamicBitSet).init(arena_allocator);
     defer antinodes.deinit();
     for (0..height) |_| {
-        try antinodes.append(try std.DynamicBitSet.initEmpty(allocator, width));
+        try antinodes.append(try std.DynamicBitSet.initEmpty(arena_allocator, width));
     }
 
     var count: usize = 0;
@@ -62,10 +66,13 @@ fn countAntinodesWrong(allocator: mem.Allocator, width: usize, height: usize, an
 
 fn countAntinodesCorrect(allocator: mem.Allocator, width: usize, height: usize, antennas: CoordMap) !usize {
     // part2
-    var antinodes = std.ArrayList(std.DynamicBitSet).init(allocator);
-    defer antinodes.deinit();
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    defer arena.deinit();
+    const arena_allocator = arena.allocator();
+
+    var antinodes = std.ArrayList(std.DynamicBitSet).init(arena_allocator);
     for (0..height) |_| {
-        try antinodes.append(try std.DynamicBitSet.initEmpty(allocator, width));
+        try antinodes.append(try std.DynamicBitSet.initEmpty(arena_allocator, width));
     }
 
     var count: usize = 0;
@@ -106,11 +113,11 @@ pub fn main() !void {
     var buffered_reader = std.io.bufferedReader(file.reader());
     var stream = buffered_reader.reader();
 
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
 
     var antennas = CoordMap.init(allocator);
-    defer antennas.deinit();
 
     var buf: [256]u8 = undefined;
     var height: usize = 0;
