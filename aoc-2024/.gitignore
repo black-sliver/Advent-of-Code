@@ -4,5 +4,5 @@
 # output
 zig-out/
 
-# cahce
+# cache
 .zig-cache/

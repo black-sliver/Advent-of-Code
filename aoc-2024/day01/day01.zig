@@ -35,8 +35,8 @@ pub fn main() !void {
 
     for (first_slice, second_slice) |first, second| {
         const diff = @abs(first - second);
-        const occurences: i32 = @intCast(std.mem.count(i32, second_slice, &[_]i32{first}));
-        similarity += first * occurences;
+        const occurrences: i32 = @intCast(std.mem.count(i32, second_slice, &[_]i32{first}));
+        similarity += first * occurrences;
         sum += diff;
     }
 

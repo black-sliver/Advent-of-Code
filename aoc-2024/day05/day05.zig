@@ -4,7 +4,7 @@ const mem = std.mem;
 
 fn isOrdered(update: []const i32, orderings: []const [2]i32) bool {
     // for each page in the update, we check if it's first in any ordering
-    // and if so, we checck that second of the ordering does not exist before it
+    // and if so, we check that second of the ordering does not exist before it
     for (0.., update) |i, page| {
         for (orderings) |ordering| {
             if (page == ordering[0]) {
