@@ -104,7 +104,7 @@ fn getSides(region: *const CoordSet, input: [][]const u8) usize {
     }
 
     var total_sides: usize = 0;
-    // all rows, all horizontal fences but last bottom
+    // all rows, all horizontal fences
     for (min_y..max_y+2) |y| {
         var was_fence: u2 = 0;
         for (min_x..max_x+1) |x| {
