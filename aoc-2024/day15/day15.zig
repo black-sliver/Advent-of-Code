@@ -11,32 +11,27 @@ const Tile = enum {
 
 const Row = std.ArrayList(Tile);
 const Map = std.ArrayList(Row);
-const Coord = @Vector(2, i16);
+const I = i16;
+const Coord = @Vector(2, I);
 
 
 // part 1
 fn move(map: *Map, from: Coord, dir: Coord) bool {
-    var objects: usize = 0;
+    var objects: I = 0;
     var next = from;
-    while (true) {
-        next += dir;
-        const y: usize = @intCast(next[1]);
-        const x: usize = @intCast(next[0]);
-        const tile = map.items[y].items[x];
-        if (tile == Tile.wall) {
-            return false;
-        } else if (tile == Tile.box) {
-            objects += 1;
-        } else if (tile == Tile.empty) {
-            break;
+    while (true) : (next += dir)  {
+        const tile = map.items[@intCast(next[1])].items[@intCast(next[0])];
+        switch (tile) {
+            Tile.wall => return false,
+            Tile.box => objects += 1,
+            Tile.empty => break,
+            else => {},
         }
     }
 
-    const n: i16 = @intCast(objects+1);
-    const end = from + dir * Coord{n, n};
-    const first = from + dir;
+    const end = from + dir * Coord{objects, objects};
     map.items[@intCast(end[1])].items[@intCast(end[0])] = Tile.box;
-    map.items[@intCast(first[1])].items[@intCast(first[0])] = Tile.empty;
+    map.items[@intCast(from[1])].items[@intCast(from[0])] = Tile.empty;
 
     return true;
 }
@@ -44,90 +39,122 @@ fn move(map: *Map, from: Coord, dir: Coord) bool {
 // part 2
 fn move2(map: *Map, from: Coord, dir: Coord) bool {
     if (dir[0] == 0) {
-        if (canMove2Y(map, from+dir, dir)) {
-            doMove2Y(map, from+dir, dir);
-            return true;
-        }
-        return false;
+        return move2Y(map, from, dir);
     } else {
         return move2X(map, from, dir);
     }
 }
 
-fn canMove2Y(map: *Map, from: Coord, dir: Coord) bool {
-    // returns false if there is a wall above either from or the attached object
-    // returns true if there is space above both from and the attached object
-    // recurses if there if there is a box or attached above either box or attachment
+fn move2Y(map: *Map, from: Coord, dir: Coord) bool {
     const tile = map.items[@intCast(from[1])].items[@intCast(from[0])];
+    var other_tile: Tile = undefined;
     var other: Coord = undefined;
-    if (tile == Tile.wall) {
-        return false;
-    }
-    if (tile == Tile.empty) {
-        return true;
-    }
-    if (tile == Tile.box) {
-        other = from + Coord{1, 0};
-    } else {
-        other = from + Coord{-1, 0};
-    }
-    return canMove2Y(map, from+dir, dir) and canMove2Y(map, other+dir, dir);
-}
-
-fn doMove2Y(map: *Map, from: Coord, dir: Coord) void {
-    const tile = map.items[@intCast(from[1])].items[@intCast(from[0])];
-    var otherTile: Tile = undefined;
-    var other: Coord = undefined;
-    if (tile == Tile.box) {
-        other = from + Coord{1, 0};
-        otherTile = Tile.attach;
-    } else if (tile == Tile.attach) {
-        other = from + Coord{-1, 0};
-        otherTile = Tile.box;
-    } else {
-        return; // done
+    switch (tile) {
+        Tile.empty => return true,
+        Tile.wall => return false,
+        Tile.box => {
+            other = from + Coord{1, 0};
+            other_tile = Tile.attach;
+        },
+        Tile.attach => {
+            other = from + Coord{-1, 0};
+            other_tile = Tile.box;
+        },
     }
     const to = from + dir;
     const to2 = other + dir;
-    doMove2Y(map, to, dir);
-    doMove2Y(map, to2, dir);
+    const next_tile = map.items[@intCast(to[1])].items[@intCast(to[0])];
+    if (next_tile != tile) {
+        // if next object is not aligned, we have to first check all connected objects
+        if (!canMove2Y(map, to, dir) or !canMove2Y(map, to2, dir)) {
+            return false;
+        }
+        move2YUnchecked(map, to, dir);
+        move2YUnchecked(map, to2, dir);
+    } else if (!move2Y(map, to, dir)) {
+        // otherwise we can just recurse
+        return false;
+    }
     map.items[@intCast(from[1])].items[@intCast(from[0])] = Tile.empty;
     map.items[@intCast(other[1])].items[@intCast(other[0])] = Tile.empty;
     map.items[@intCast(to[1])].items[@intCast(to[0])] = tile;
-    map.items[@intCast(to2[1])].items[@intCast(to2[0])] = otherTile;
+    map.items[@intCast(to2[1])].items[@intCast(to2[0])] = other_tile;
+    return true;
+}
+
+fn canMove2Y(map: *Map, from: Coord, dir: Coord) bool {
+    const tile = map.items[@intCast(from[1])].items[@intCast(from[0])];
+    var other: Coord = undefined;
+    switch (tile) {
+        Tile.empty => return true,
+        Tile.wall => return false,
+        Tile.box => other = from + Coord{1, 0},
+        Tile.attach => other = from + Coord{-1, 0},
+    }
+    const to = from + dir;
+    const to2 = other + dir;
+    const next_tile = map.items[@intCast(to[1])].items[@intCast(to[0])];
+    if (next_tile != tile and !canMove2Y(map, to2, dir)) {
+        // if unaligned, check the other side
+        return false;
+    }
+    return canMove2Y(map, to, dir);
+}
+
+fn move2YUnchecked(map: *Map, from: Coord, dir: Coord) void {
+    const tile = map.items[@intCast(from[1])].items[@intCast(from[0])];
+    var other_tile: Tile = undefined;
+    var other: Coord = undefined;
+    switch (tile) {
+        Tile.box => {
+            other = from + Coord{1, 0};
+            other_tile = Tile.attach;
+        },
+        Tile.attach => {
+            other = from + Coord{-1, 0};
+            other_tile = Tile.box;
+        },
+        else => return, // done
+    }
+    const to = from + dir;
+    const to2 = other + dir;
+    const next_tile = map.items[@intCast(to[1])].items[@intCast(to[0])];
+    move2YUnchecked(map, to, dir);
+    if (next_tile != tile) {
+        // if unaligned, move the other side
+        move2YUnchecked(map, to2, dir);
+    }
+    map.items[@intCast(from[1])].items[@intCast(from[0])] = Tile.empty;
+    map.items[@intCast(other[1])].items[@intCast(other[0])] = Tile.empty;
+    map.items[@intCast(to[1])].items[@intCast(to[0])] = tile;
+    map.items[@intCast(to2[1])].items[@intCast(to2[0])] = other_tile;
 }
 
 fn move2X(map: *Map, from: Coord, dir: Coord) bool {
     var objects: usize = 0;
-    {
-        var next = from;
-        while (true) {
-            next += dir;
-            const y: usize = @intCast(next[1]);
-            const x: usize = @intCast(next[0]);
-            const tile = map.items[y].items[x];
-            if (tile == Tile.wall) {
-                return false;
-            } else if (tile == Tile.box) {
-                objects += 1;
-            } else if (tile == Tile.empty) {
-                break;
-            }
+    var next: Coord = undefined;
+
+    next = from;
+    while (true) : (next += dir) {
+        const tile = map.items[@intCast(next[1])].items[@intCast(next[0])];
+        switch (tile) {
+            Tile.wall => return false,
+            Tile.box => objects += 1,
+            Tile.empty => break,
+            else => {},
         }
     }
-    {
-        const first = from + dir;
-        map.items[@intCast(first[1])].items[@intCast(first[0])] = Tile.empty;
-        var next = first + dir;
-        if (dir[0] < 0) {
-            next += dir; // box, not attach
-        }
-        for (0..objects) |_| {
-            map.items[@intCast(next[1])].items[@intCast(next[0])] = Tile.box;
-            map.items[@intCast(next[1])].items[@intCast(next[0]+1)] = Tile.attach;
-            next += dir;
-            next += dir;
-        }
+
+    map.items[@intCast(from[1])].items[@intCast(from[0])] = Tile.empty;
+    next = from + dir;
+    if (dir[0] < 0) {
+        next += dir; // box, not attach
+    }
+    for (0..objects) |_| {
+        map.items[@intCast(next[1])].items[@intCast(next[0])] = Tile.box;
+        map.items[@intCast(next[1])].items[@intCast(next[0]+1)] = Tile.attach;
+        next += dir;
+        next += dir;
     }
 
     return true;
@@ -230,19 +257,23 @@ pub fn main() !void {
     defer arena.deinit();
     const allocator = arena.allocator();
 
-    var map = Map.init(allocator);
+    var map1 = Map.init(allocator);
     var map2 = Map.init(allocator);
     var robot_start: Coord = undefined;
 
     var buf: [1024]u8 = undefined;
     while (try stream.readUntilDelimiterOrEof(&buf, '\n')) |line| {
+        if (map1.capacity == 0) {
+            try map1.ensureTotalCapacityPrecise(line.len);
+            try map2.ensureTotalCapacityPrecise(line.len);
+        }
         if (line.len == 0) {
             break;
         }
         var row = try Row.initCapacity(allocator, line.len);
         var row2 = try Row.initCapacity(allocator, line.len * 2);
-        try parseRow(line, &row, &row2, &robot_start, map.items.len);
-        try map.append(row);
+        try parseRow(line, &row, &row2, &robot_start, map1.items.len);
+        try map1.append(row);
         try map2.append(row2);
     }
     var robot1 = robot_start;
@@ -251,17 +282,17 @@ pub fn main() !void {
         for (line) |c| {
             const direction: Coord = dirFromChar(c);
             // part 1
-            if (move(&map, robot1, direction)) {
+            if (move(&map1, robot1 + direction, direction)) {
                 robot1 += direction;
             }
             // part 2
-            if (move2(&map2, robot2, direction)) {
+            if (move2(&map2, robot2 + direction, direction)) {
                 robot2 += direction;
             }
         }
     }
 
-    const gps_sum1: usize = calculateGpsSum(&map);
+    const gps_sum1: usize = calculateGpsSum(&map1);
     const gps_sum2: usize = calculateGpsSum(&map2);
 
     try stdout.print("Result 1: {d}\n", .{gps_sum1});
@@ -305,20 +336,20 @@ test "move2" {
     }
     const data = map.items[1].items;
     std.debug.print("{any}\n", .{data});
-    try testing.expect(move2(&map, Coord{7, 1}, Coord{-1, 0}));
+    try testing.expect(move2(&map, Coord{6, 1}, Coord{-1, 0}));
     std.debug.print("{any}\n", .{data});
     try testing.expectEqual(Tile.box, data[2]);
     try testing.expectEqual(Tile.attach, data[3]);
     try testing.expectEqual(Tile.box, data[4]);
     try testing.expectEqual(Tile.attach, data[5]);
     try testing.expectEqual(Tile.empty, data[6]);
-    try testing.expect(move2(&map, Coord{6, 1}, Coord{-1, 0}));
+    try testing.expect(move2(&map, Coord{5, 1}, Coord{-1, 0}));
     try testing.expectEqual(Tile.empty, data[5]);
-    try testing.expect(!move2(&map, Coord{5, 1}, Coord{-1, 0}));
-    try testing.expect(move2(&map, Coord{0, 1}, Coord{1, 0}));
+    try testing.expect(!move2(&map, Coord{4, 1}, Coord{-1, 0}));
+    try testing.expect(move2(&map, Coord{1, 1}, Coord{1, 0}));
     try testing.expectEqual(Tile.attach, data[5]);
     try testing.expectEqual(Tile.empty, data[6]);
-    try testing.expect(move2(&map, Coord{1, 1}, Coord{1, 0}));
+    try testing.expect(move2(&map, Coord{2, 1}, Coord{1, 0}));
     std.debug.print("{any}\n", .{data});
     try testing.expectEqual(Tile.empty, data[2]);
     try testing.expectEqual(Tile.box, data[3]);
@@ -326,7 +357,7 @@ test "move2" {
     try testing.expectEqual(Tile.box, data[5]);
     try testing.expectEqual(Tile.attach, data[6]);
     try testing.expectEqual(Tile.empty, data[7]);
-    try testing.expect(move2(&map, Coord{2, 1}, Coord{1, 0}));
+    try testing.expect(move2(&map, Coord{3, 1}, Coord{1, 0}));
     std.debug.print("{any}\n", .{data});
     try testing.expectEqual(Tile.empty, data[3]);
     try testing.expectEqual(Tile.box, data[4]);
@@ -334,7 +365,7 @@ test "move2" {
     try testing.expectEqual(Tile.box, data[6]);
     try testing.expectEqual(Tile.attach, data[7]);
     try testing.expectEqual(Tile.wall, data[8]);
-    try testing.expect(!move2(&map, Coord{3, 1}, Coord{1, 0}));
+    try testing.expect(!move2(&map, Coord{4, 1}, Coord{1, 0}));
 }
 
 test "big_example" {
@@ -398,12 +429,12 @@ test "big_example" {
         } else {
             for (line) |c| {
                 const direction: Coord = dirFromChar(c);
-                if (move(&map, robot1, direction)) {
+                if (move(&map, robot1 + direction, direction)) {
                     robot1 += direction;
                 }
                 //waitForEnter();
                 std.debug.print("{c} from {} -> ", .{c, robot2});
-                if (move2(&map2, robot2, direction)) {
+                if (move2(&map2, robot2 + direction, direction)) {
                     robot2 += direction;
                 }
                 std.debug.print("{}\n", .{robot2});
@@ -464,7 +495,7 @@ test "bonus_example" {
                 //printMap(&map2, robot2);
                 _ = i;
                 const direction: Coord = dirFromChar(c);
-                if (move2(&map2, robot2, direction)) {
+                if (move2(&map2, robot2 + direction, direction)) {
                     robot2 += direction;
                 }
             }
