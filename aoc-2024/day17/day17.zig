@@ -29,15 +29,15 @@ const ComboOperand = union(ComboOperandTag) {
 
 const LiteralOperatnd = u3;
 
-const InstructionTag = enum {
-    adv,
-    bxl,
-    bst,
-    jnz,
-    bxc,
-    out,
-    bdv,
-    cdv,
+const InstructionTag = enum(u3) {
+    adv = 0,
+    bxl = 1,
+    bst = 2,
+    jnz = 3,
+    bxc = 4,
+    out = 5,
+    bdv = 6,
+    cdv = 7,
 };
 
 const Instruction = union(InstructionTag) {
@@ -53,33 +53,52 @@ const Instruction = union(InstructionTag) {
     cdv: ComboOperand,
 
     fn init(data: []const u8) Self {
-        // TODO: comptime for loop instead
-        switch (data[0]) {
-            0 => return Self{.adv = ComboOperand.init(data[1])},
-            1 => return Self{.bxl = @intCast(data[1])},
-            2 => return Self{.bst = ComboOperand.init(data[1])},
-            3 => return Self{.jnz = @intCast(data[1])},
-            4 => return .bxc,
-            5 => return Self{.out = ComboOperand.init(data[1])},
-            6 => return Self{.bdv = ComboOperand.init(data[1])},
-            7 => return Self{.cdv = ComboOperand.init(data[1])},
-            else => {
-                std.debug.assert(false);
-                return Self{.adv = ComboOperand.init(data[1])};
-            }
-        }
+        const runtime_tag: InstructionTag = @enumFromInt(data[0]);
+
+        return switch(runtime_tag) {
+            inline else => |tag| // unrolls into all cases with comptime tag
+                // union.fields requires fields to be in correct order, but
+                // @FieldType(Self, @tagName(tag)) // is n/a in 0.13
+                switch (@typeInfo(Self).Union.fields[@intFromEnum(tag)].type) {
+                    LiteralOperatnd => @unionInit(Self, @tagName(tag), @intCast(data[1])),
+                    ComboOperand => @unionInit(Self, @tagName(tag), ComboOperand.init(data[1])),
+                    void => @unionInit(Self, @tagName(tag), undefined),
+                    else => @compileError("Unhandled op arg type " ++
+                        @typeName(@typeInfo(Self).Union.fields[@intFromEnum(tag)].type)),
+                }
+        };
     }
 };
 
 const Machine = struct {
     const Self = @This();
 
-    program: []const u8 = &[_]u8{},
+    allocator: mem.Allocator,
+    program: []Instruction,
     pc: u8 = 0,
     registers: [3]Register = [_]Register{0} ** 3,
 
-    pub fn init() Self {
-        return Self{};
+    fn compile(allocator: mem.Allocator, program: []const u8) ![]Instruction {
+        if (program.len & 1 != 0) {
+            return error.InvalidProgram;
+        }
+        var res = try allocator.alloc(Instruction, program.len / 2);
+        for (0..program.len / 2) |i| {
+            res[i] = Instruction.init(program[i*2..i*2+2]);
+        }
+        return res;
+    }
+
+    pub fn init(allocator: mem.Allocator, program: []const u8, a: Register, b: Register, c: Register) !Self {
+        return Self{
+            .allocator = allocator,
+            .program = try Self.compile(allocator, program),
+            .registers = [_]Register{a, b, c},
+        };
+    }
+
+    pub fn deinit(self: *Self) void {
+        self.allocator.free(self.program);
     }
 
     pub fn getValue(self: *const Self, operand: ComboOperand) Register {
@@ -89,13 +108,13 @@ const Machine = struct {
         }
     }
 
-    pub fn reset(self: *Self) void {
+    pub fn reset(self: *Self, a: Register, b: Register, c: Register) void {
         self.pc = 0;
-        self.registers = [_]Register{0} ** 3;
+        self.registers = [_]Register{a, b, c};
     }
 
     pub fn run(self: *Self) ?u8 {
-        const instr = Instruction.init(self.program[self.pc..self.pc+2]);
+        const instr = self.program[self.pc / 2];
         self.pc += 2;
         switch (instr) {
             .adv => |operand| {
@@ -129,7 +148,7 @@ const Machine = struct {
     }
 
     pub fn done(self: *const Self) bool {
-        return self.pc >= self.program.len;
+        return self.pc >= self.program.len * 2;
     }
 };
 
@@ -158,7 +177,7 @@ pub fn main() !void {
     var program = try std.ArrayList(u8).initCapacity(allocator, 16);
     defer program.deinit();
 
-    var machine = Machine{};
+    var initial_register = [_]Register{0} ** 3;
 
     var buf: [256]u8 = undefined;
     while (try stream.readUntilDelimiterOrEof(&buf, '\n')) |line| {
@@ -168,7 +187,7 @@ pub fn main() !void {
         var relevant = line[9..];
         switch (relevant[0]) {
             'A'...'C' => |c| {
-                machine.registers[c-'A'] = try fmt.parseInt(Register, relevant[3..], 10);
+                initial_register[c-'A'] = try fmt.parseInt(Register, relevant[3..], 10);
             },
             else => {
                 var it = std.mem.splitScalar(u8, relevant, ',');
@@ -178,7 +197,10 @@ pub fn main() !void {
             }
         }
     }
-    machine.program = program.items;
+
+    var machine = try Machine.init(allocator, program.items,
+        initial_register[0], initial_register[1], initial_register[2]);
+    defer machine.deinit();
 
     // part 1:
     try stdout.print("Result1: ", .{});
@@ -203,21 +225,20 @@ pub fn main() !void {
     //     etc...
     // there is definitely also a way to analyze the program and loop backwards,
     // however that seems hard to do generically and is more work.
-    var a: u64 = @as(u64, 1) << @intCast(3 * (machine.program.len - 1));
-    std.debug.assert(machine.program.len != 16 or a == 35184372088832);
+    var a: u64 = @as(u64, 1) << @intCast(3 * (program.items.len - 1));
+    std.debug.assert(program.items.len != 16 or a == 35184372088832);
     var step: u64 = a;
-    if (machine.program.len > 16) {
+    if (program.items.len > 16) {
         // we use a fixed-size buffer, so limit to that
         try stdout.print("Not implemented for program len > 16\n", .{});
         return error.NotImplemented;
     }
-    const last_symbol_index = machine.program.len - 1;
+    const last_symbol_index = program.items.len - 1;
     var symbol_pos: usize = last_symbol_index; // start by looking for the last symbol
     solver: while (true) {
         var out: [16]u8 = [_]u8{0} ** 16;
         var out_pos: usize = 0;
-        machine.reset();
-        machine.registers[0] = a;
+        machine.reset(a, initial_register[1], initial_register[2]);
         while (!machine.done()) {
             if (machine.run()) |value| {
                 if (out_pos == out.len) {
@@ -228,18 +249,19 @@ pub fn main() !void {
                 }
                 out[out_pos] = value;
                 out_pos += 1;
+                // we could exit early here if outpot_pos > symbol_pos, however the while loop below breaks then
             }
         }
         // check which symbols are now correct/incorrect (one step can change multiple)
         while (true) {
             // if symbol at previous pos is incorrect, move to previous
-            if (symbol_pos < last_symbol_index and out[symbol_pos+1] != machine.program[symbol_pos+1]) {
+            if (symbol_pos < last_symbol_index and out[symbol_pos+1] != program.items[symbol_pos+1]) {
                 //std.debug.print("Modified symbol {d}, moving back\n", .{symbol_pos + 1});
                 step <<= 3;
                 symbol_pos += 1;
             }
             // if symbol at pos is correct, move to next
-            else if (out[symbol_pos] == machine.program[symbol_pos]) {
+            else if (out[symbol_pos] == program.items[symbol_pos]) {
                 //std.debug.print("Found symbol {d} at A = {d}: ", .{symbol_pos, a});
                 //printOutput(&out, out_pos);
                 if (symbol_pos == 0) {
@@ -269,9 +291,8 @@ test "sample" {
     const program = [_]u8{0, 1, 5, 4, 3, 0};
     var out = [_]u8{0} ** 16;
     var out_pos: usize = 0;
-    var machine = Machine.init();
-    machine.registers[0] = 729; // A
-    machine.program = &program;
+    var machine = try Machine.init(testing.allocator, &program, 729, 0, 0);
+    defer machine.deinit();
     while (!machine.done()) {
         if (machine.run()) |value| {
             out[out_pos] = value;
@@ -287,9 +308,8 @@ test "reverse_sample_forward" {
     const program = [_]u8{0,3,5,4,3,0};
     var out = [_]u8{0} ** 16;
     var out_pos: usize = 0;
-    var machine = Machine.init();
-    machine.registers[0] = 117440; // A
-    machine.program = &program;
+    var machine = try Machine.init(testing.allocator, &program, 117440, 0, 0);
+    defer machine.deinit();
     while (!machine.done()) {
         if (machine.run()) |value| {
             out[out_pos] = value;
