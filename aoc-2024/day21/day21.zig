@@ -93,6 +93,7 @@ fn deinit() void {
     dirpad_layout.deinit();
     keypad_moves.deinit();
     dirpad_moves.deinit();
+    rc_cache.deinit();
     //arena.deinit();
 }
 
@@ -249,7 +250,7 @@ fn rc_dirpad_uncached(move: Moves, level: usize, order: Order) usize {
         }
         // activate button
         {
-            const inner_order = if (inner_from != '<') Order.x_first else Order.dont_care;
+            const inner_order = if (inner_from == '<') Order.x_first else Order.dont_care;
             const inner_move = dirpad_moves.get(.{inner_from, 'A'}).?;
             if (level > 0) {
                 sum += rc_dirpad(inner_move, level - 1, inner_order);
@@ -321,7 +322,7 @@ fn rc_dirpad_uncached(move: Moves, level: usize, order: Order) usize {
         }
         // activate button
         {
-            const inner_order = if (inner_from != '<') Order.x_first else Order.dont_care;
+            const inner_order = if (inner_from == '<') Order.x_first else Order.dont_care;
             const inner_move = dirpad_moves.get(.{inner_from, 'A'}).?;
             if (level > 0) {
                 sum += rc_dirpad(inner_move, level - 1, inner_order);
