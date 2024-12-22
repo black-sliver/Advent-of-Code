@@ -3,7 +3,7 @@
 
 # aoc input
 input.txt
-sample-input.txt
+sample-input*.txt
 testinput.txt
 
 # build output
