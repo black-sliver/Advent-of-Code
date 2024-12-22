@@ -9,7 +9,7 @@ const Tile = enum {
     wall,
 };
 
-const I = usize;
+const I = u16;
 const Coord = @Vector(2, I);
 const Row = std.ArrayList(Tile);
 const Map = std.ArrayList(Row);
@@ -17,7 +17,7 @@ const Node = struct {
     connections: u8 = 0,
     to: [4]Coord = [_]Coord{Coord{0, 0}} ** 4,
 };
-const Nodes = std.AutoHashMap(Coord, Node);
+const Nodes = std.AutoArrayHashMap(Coord, Node);
 
 const DijkstraNode = struct {
     visited: bool = false,
@@ -45,7 +45,6 @@ fn minDistance(output: *DijkstraNodes) ?Coord {
 }
 
 fn dijkstra(nodes: *Nodes, output: *DijkstraNodes, start: Coord, end: Coord) !void {
-    _ = end;
     try output.put(start, DijkstraNode{.distance = 0});
 
     for (0..nodes.count() - 1) |_| {
@@ -54,6 +53,9 @@ fn dijkstra(nodes: *Nodes, output: *DijkstraNodes, start: Coord, end: Coord) !vo
 
         const current_node = nodes.get(pos) orelse return error.NoStart;
         entry.value_ptr.visited = true;
+        if (@reduce(.And, pos == end)) {
+            return; // don't iterate past end
+        }
 
         // update each connected node
         for (current_node.to[0..current_node.connections]) |connection| {
@@ -74,15 +76,20 @@ fn dijkstra(nodes: *Nodes, output: *DijkstraNodes, start: Coord, end: Coord) !vo
     }
 }
 
-fn removeConnection(node: *Node, pos: Coord) bool {
-    for (node.to[0..node.connections], 0..) |to, i| {
-        if (@reduce(.And, to == pos)) {
-            for (i..node.connections-1) |j| {
-                node.to[j] = node.to[j+1];
-            }
-            node.connections -= 1;
-            return true;
+fn indexOfCoord(haystack: []Coord, needle: Coord) ?usize {
+    for (haystack, 0..) |element, i| {
+        if (@reduce(.And, element == needle)) {
+            return i;
         }
+    }
+    return null;
+}
+
+fn removeConnection(node: *Node, pos: Coord) bool {
+    if (indexOfCoord(node.to[0..node.connections], pos)) |i| {
+        std.mem.copyForwards(Coord, node.to[i..node.connections-1], node.to[i+1..node.connections]);
+        node.connections -= 1;
+        return true;
     }
     return false;
 }
@@ -129,7 +136,7 @@ pub fn main() !void {
     for (0..width) |y| {
         for (0..width) |x| {
             if (map[y][x] == Tile.space) {
-                try nodes.put(Coord{x, y}, Node{});
+                try nodes.put(Coord{@intCast(x), @intCast(y)}, Node{});
             }
         }
     }
@@ -169,9 +176,11 @@ pub fn main() !void {
         }
     }
 
+    // NOTE: this is c&p from my initial day16 solution, so far from ideal, but quick to do
+
     // part 1:
     var distances = DijkstraNodes.init(allocator);
-    try distances.ensureTotalCapacity(nodes.count());
+    try distances.ensureTotalCapacity(@intCast(nodes.count()));
     try dijkstra(&nodes, &distances, start, end);
 
     const result1 = distances.get(end).?.distance;
@@ -180,12 +189,17 @@ pub fn main() !void {
 
     // part 2:
     // IMPORTANT: build with -OReleaseFast and it should finish in a minute
+    // binary search, figuraing out if it's on the actual path or better nodes layout would make it faster
+    // or use BFS?
     while (try stream.readUntilDelimiterOrEof(&buf, '\n')) |line| {
         var it = std.mem.splitScalar(u8, line, ',');
         const x = try fmt.parseInt(u8, it.next() orelse return error.Input, 10);
         const y = try fmt.parseInt(u8, it.next() orelse return error.Input, 10);
 
         const pos = Coord{x, y};
+        if (!distances.contains(pos)) {
+            continue;
+        }
         if (x > 0) {
             if (nodes.getPtr(Coord{x-1, y})) |node| {
                 _ = removeConnection(node, pos);
