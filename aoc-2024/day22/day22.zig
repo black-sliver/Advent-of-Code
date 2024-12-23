@@ -6,7 +6,7 @@ const mem = std.mem;
 const testing = std.testing;
 
 const ChangeSequences = std.AutoHashMap([4]i8, u32);
-const ChangesSet = std.AutoHashMap([4]i8, void);
+const SequenceSet = std.AutoHashMap([4]i8, void);
 
 fn random(prev: u24) u24 {
     const a: u24 = prev ^ @as(u24, (prev << 6) & 0xffffff);
@@ -28,9 +28,9 @@ fn getBestSequence(allocator: mem.Allocator, numbers: []const u24) !usize {
     defer change_sequences.deinit();
     try change_sequences.ensureTotalCapacity(2000);
 
-    var changes_set = ChangesSet.init(allocator);
-    defer changes_set.deinit();
-    try changes_set.ensureTotalCapacity(1997);
+    var sequence_set = SequenceSet.init(allocator);
+    defer sequence_set.deinit();
+    try sequence_set.ensureTotalCapacity(1997);
 
     var best_seq: [4]i8 = .{0, 0, 0, 0};
     var best_sum: usize = 0;
@@ -38,7 +38,7 @@ fn getBestSequence(allocator: mem.Allocator, numbers: []const u24) !usize {
         var number = start;
         var old_price: i8 = @intCast(number % 10);
         var seq: [4]i8 = .{0, 0, 0, 0};
-        changes_set.clearRetainingCapacity();
+        sequence_set.clearRetainingCapacity();
         for (0..2000) |i| {
             const new = random(number);
             const new_price: i8 = @intCast(new % 10);
@@ -46,8 +46,8 @@ fn getBestSequence(allocator: mem.Allocator, numbers: []const u24) !usize {
             mem.copyForwards(i8, &seq, seq[1..]);
             seq[3] = new_change;
             if (i >= 3) {
-                if (new_price > 0) {
-                    if (!(try changes_set.getOrPut(seq)).found_existing){
+                if (!(try sequence_set.getOrPut(seq)).found_existing){
+                    if (new_price > 0) {
                         const entry = try change_sequences.getOrPutValue(seq, 0);
                         const new_sum: usize = entry.value_ptr.* + @as(u32, @intCast(new_price));
                         entry.value_ptr.* = @intCast(new_sum);
