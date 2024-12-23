@@ -1,7 +1,12 @@
+const builtin = @import("builtin");
 const std = @import("std");
+const dbg = builtin.mode == .Debug;
 const fmt = std.fmt;
 const mem = std.mem;
 const testing = std.testing;
+
+const ChangeSequences = std.AutoHashMap([4]i8, u32);
+const ChangesSet = std.AutoHashMap([4]i8, void);
 
 fn random(prev: u24) u24 {
     const a: u24 = prev ^ @as(u24, (prev << 6) & 0xffffff);
@@ -18,95 +23,54 @@ fn nth_random(prev: u24, n: usize) u24 {
     return number;
 }
 
-const Prices = std.ArrayList(i8);
-const Changes = std.ArrayList(i8);
-const ChangesPrices = std.AutoHashMap([4]i8, i8);
+fn getBestSequence(allocator: mem.Allocator, numbers: []const u24) !usize {
+    var change_sequences = ChangeSequences.init(allocator);
+    defer change_sequences.deinit();
+    try change_sequences.ensureTotalCapacity(2000);
 
-fn getBestSequence(allocator: mem.Allocator, numbers: []const u24) !struct{seq: [4]i8, sum: usize} {
-    //var prices_list = try std.ArrayList(Prices).initCapacity(allocator, numbers.len);
-    //var changes_list = try std.ArrayList(Changes).initCapacity(allocator, numbers.len);
-    var changes_prices_list = try std.ArrayList(ChangesPrices).initCapacity(allocator, numbers.len);
-    defer {
-        for (changes_prices_list.items) |map| {
-            var wtf = map;
-            wtf.deinit();
-        }
-        changes_prices_list.deinit();
-        //for (changes_list.items) |changes| {
-        //    changes.deinit();
-        //}
-        //changes_list.deinit();
-        //for (prices_list.items) |prices| {
-        //    prices.deinit();
-        //}
-        //prices_list.deinit();
-    }
+    var changes_set = ChangesSet.init(allocator);
+    defer changes_set.deinit();
+    try changes_set.ensureTotalCapacity(1997);
+
+    var best_seq: [4]i8 = .{0, 0, 0, 0};
+    var best_sum: usize = 0;
     for (numbers) |start| {
-        //var prices = try Prices.initCapacity(allocator, 2000);
-        //var changes = try Changes.initCapacity(allocator, 2000);
-        var changes_prices = ChangesPrices.init(allocator);
-        try changes_prices.ensureTotalCapacity(2000);
         var number = start;
         var old_price: i8 = @intCast(number % 10);
         var seq: [4]i8 = .{0, 0, 0, 0};
+        changes_set.clearRetainingCapacity();
         for (0..2000) |i| {
             const new = random(number);
             const new_price: i8 = @intCast(new % 10);
             const new_change = new_price - old_price;
             mem.copyForwards(i8, &seq, seq[1..]);
             seq[3] = new_change;
-            //try prices.append(new_price);
-            //try changes.append(new_change);
             if (i >= 3) {
-                _ = try changes_prices.getOrPutValue(seq, new_price);
+                if (new_price > 0) {
+                    if (!(try changes_set.getOrPut(seq)).found_existing){
+                        const entry = try change_sequences.getOrPutValue(seq, 0);
+                        const new_sum: usize = entry.value_ptr.* + @as(u32, @intCast(new_price));
+                        entry.value_ptr.* = @intCast(new_sum);
+                        if (new_sum > best_sum) {
+                            best_sum = new_sum;
+                            if (dbg) {
+                                best_seq = seq;
+                            }
+                        }
+                    }
+                }
             }
             number = new;
             old_price = new_price;
         }
-        //try prices_list.append(prices);
-        //try changes_list.append(changes);
-        try changes_prices_list.append(changes_prices);
     }
-    std.debug.print("Generating", .{});
-    var best: [4]i8 = .{0, 0, 0, 0};
-    var best_sum: usize = 0;
-    var seq: [4]i8 = .{0, 0, 0, 0};
-    // TODO: instead of generating all possible combinations, check only the ones that actually exist (in a set)
-    for (0..18+1) |i| {
-        seq[0] = @as(i8, @intCast(i)) - 9;
-        for (0..18+1) |j| {
-            std.debug.print(".", .{});
-            seq[1] =  @as(i8, @intCast(j)) - 9;
-            for (0..18+1) |k| {
-                seq[2] =  @as(i8, @intCast(k)) - 9;
-                for (0..18+1) |l| {
-                    seq[3] =  @as(i8, @intCast(l)) - 9;
-                    var sum: usize = 0;
-                    for (changes_prices_list.items) |map| {
-                        if (map.get(seq)) |price| {
-                            sum += @intCast(price);
-                        }
-                    }
-                    //for (changes_list.items, 0..) |changes, buyer| {
-                    //    if (mem.indexOf(i8, changes.items, &seq)) |pos| {
-                    //        const price_pos = pos + 3;
-                    //        sum += @intCast(prices_list.items[buyer].items[price_pos]);
-                    //    }
-                    //}
-                    //for (changes_list.items, 0..) |changes, buyer| {
-                    if (sum > best_sum) {
-                        best_sum = sum;
-                        best = seq;
-                    }
-                }
-            }
-        }
+
+    if (dbg) {
+        std.debug.print("Best sequence: {d},{d},{d},{d}\n",
+            .{best_seq[0], best_seq[1], best_seq[2], best_seq[3]}
+        );
     }
-    std.debug.print("\n", .{});
-    return .{
-        .seq = best,
-        .sum = best_sum,
-    };
+    return best_sum;
 }
 
 pub fn main() !void {
@@ -134,15 +98,9 @@ pub fn main() !void {
     }
 
     const result2 = try getBestSequence(allocator, numbers.items);
-    std.debug.print("Best sequence: {d},{d},{d},{d}\n",
-        .{result2.seq[0], result2.seq[1], result2.seq[2], result2.seq[3]}
-    );
 
     try stdout.print("Result1: {d}\n", .{result1});
-    try stdout.print(
-        "Result2: {d}\n",
-        .{result2.sum}
-    );
+    try stdout.print("Result2: {d}\n", .{result2});
 }
 
 test "no_overflow" {
@@ -168,5 +126,5 @@ test "part2_example" {
         2024,
     };
     const result = try getBestSequence(testing.allocator, &input);
-    try testing.expectEqualSlices(i8, &[_]i8{-2, 1, -1, 3}, &result);
+    try testing.expectEqual(23, result);
 }
