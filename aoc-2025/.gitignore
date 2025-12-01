@@ -1,0 +1,11 @@
+# toolchain test
+/hello.zig
+
+# output
+zig-out/
+
+# local build-exe output
+/day[0-2][0-9]/day[0-2][0-9]
+
+# cache
+.zig-cache/
