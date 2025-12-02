@@ -11,12 +11,12 @@ const Range = struct {
 fn part1(ranges: []const Range) u64 {
     var sum: u64 = 0;
     for (ranges) |range| {
-        for (range.first..range.last+1) |id| {
+        for (range.first..range.last + 1) |id| {
             const n: u64 = @intCast(id);
             const l = std.math.log10_int(n);
             if (@mod(l, 2) == 0)
                 continue;
-            const mask: u64 = std.math.pow(u64, 10, (l + 1)/2);
+            const mask: u64 = std.math.pow(u64, 10, (l + 1) / 2);
             const top = n / mask;
             const bot = n % mask;
             if (top == bot) {
@@ -30,10 +30,10 @@ fn part1(ranges: []const Range) u64 {
 fn part2(ranges: []const Range) u64 {
     var sum: u64 = 0;
     for (ranges) |range| {
-        for (range.first..range.last+1) |id| {
+        for (range.first..range.last + 1) |id| {
             const n: u64 = @intCast(id);
             const l = std.math.log10_int(n) + 1;
-            label1: for (2..l+1) |repetitions| {
+            label1: for (2..l + 1) |repetitions| {
                 if (l % repetitions != 0) {
                     continue;
                 }
@@ -67,7 +67,7 @@ fn readInput(allocator: std.mem.Allocator, ranges: *std.ArrayList(Range)) !void 
         const p = std.mem.indexOfScalar(u8, line, '-') orelse return error.InvalidRange;
         const e = std.mem.lastIndexOfNone(u8, line, "\r\n") orelse continue;
         range.first = try std.fmt.parseInt(u64, line[0..p], 10);
-        range.last = try std.fmt.parseInt(u64, line[p+1..e+1], 10);
+        range.last = try std.fmt.parseInt(u64, line[p + 1 .. e + 1], 10);
         try ranges.append(allocator, range);
     }
 }
@@ -94,15 +94,15 @@ pub fn main() !void {
     try stdout.print("{}\n", .{res2});
 }
 
-const test_input = [_]Range {
-    .{ .first = 11, .last = 22},
-    .{ .first = 95, .last = 115},
-    .{ .first = 998, .last = 1012},
+const test_input = [_]Range{
+    .{ .first = 11, .last = 22 },
+    .{ .first = 95, .last = 115 },
+    .{ .first = 998, .last = 1012 },
     .{ .first = 1188511880, .last = 1188511890 },
     .{ .first = 222220, .last = 222224 },
     .{ .first = 1698522, .last = 1698528 },
     .{ .first = 446443, .last = 446449 },
-    .{ .first = 38593856, .last = 38593862},
+    .{ .first = 38593856, .last = 38593862 },
     .{ .first = 565653, .last = 565659 },
     .{ .first = 824824821, .last = 824824827 },
     .{ .first = 2121212118, .last = 2121212124 },
