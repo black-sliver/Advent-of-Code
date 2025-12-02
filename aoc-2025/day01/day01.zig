@@ -1,6 +1,5 @@
 const std = @import("std");
-
-// const debug_allocator: std.heap.DebugAllocator(.{}) = .init;
+const builtin = @import("builtin");
 
 const Dir = enum {
     L,
@@ -18,14 +17,10 @@ fn part1(moves: []const Move) u32 {
     for (moves) |move| {
         switch (move.dir) {
             .L => {
-                pos -= @mod(move.distance, 100);
-                if (pos < 0)
-                    pos += 100;
+                pos = @mod(pos - move.distance, 100);
             },
             .R => {
-                pos += @mod(move.distance, 100);
-                if (pos > 99)
-                    pos -= 100;
+                pos = @mod(pos + move.distance, 100);
             },
         }
         if (pos == 0)
@@ -40,42 +35,28 @@ fn part2(moves: []const Move) u32 {
     for (moves) |move| {
         switch (move.dir) {
             .L => {
-                const lastWasZero = pos == 0;
-                const remainder = @mod(move.distance, 100);
+                // count number of full turns + 1 if we hit 0 or underflow and did not start at 0
+                const last_pos = pos;
                 res += @intCast(@divTrunc(move.distance, 100));
-                pos -= @intCast(remainder);
-                if (pos <= 0 and !lastWasZero)
+                pos = @intCast(@mod(pos - move.distance, 100));
+                if ((pos == 0 or pos > last_pos) and last_pos != 0)
                     res += 1;
-                if (pos < 0)
-                    pos += 100;
             },
             .R => {
-                const remainder = @mod(move.distance, 100);
-                res += @intCast(@divTrunc(move.distance, 100));
-                pos += @intCast(remainder);
-                if (pos >= 100) {
-                    res += 1;
-                    pos -= 100;
-                }
+                // count number of overflows
+                res += @intCast(@divTrunc(pos + move.distance, 100));
+                pos = @intCast(@mod(pos + move.distance, 100));
             },
         }
     }
     return res;
 }
 
-pub fn main() !void {
-    var stdout_buffer: [1024]u8 = undefined;
-    var stdout_writer = std.fs.File.stdout().writer(&stdout_buffer);
-    const stdout = &stdout_writer.interface;
-    defer stdout.flush() catch {};
-
-    const allocator = std.heap.smp_allocator;
-
+fn readInput(allocator: std.mem.Allocator, moves: *std.ArrayList(Move)) !void {
     var file_buffer: [4096]u8 = undefined;
     const file = try std.fs.cwd().openFile("input.txt", .{});
     defer file.close();
     var reader = file.reader(&file_buffer);
-    var moves: std.ArrayList(Move) = .empty;
     while (try reader.interface.takeDelimiter('\n')) |line| {
         if (line.len < 2) {
             return error.BadFormat;
@@ -94,6 +75,23 @@ pub fn main() !void {
         }
         try moves.append(allocator, move);
     }
+}
+
+pub fn main() !void {
+    var stdout_buffer: [1024]u8 = undefined;
+    var stdout_writer = std.fs.File.stdout().writer(&stdout_buffer);
+    const stdout = &stdout_writer.interface;
+    defer stdout.flush() catch {};
+
+    var debug_allocator: std.heap.DebugAllocator(.{}) = .init;
+    defer if (builtin.mode == .Debug) {
+        _ = debug_allocator.deinit();
+    };
+    const allocator = if (builtin.mode == .Debug) debug_allocator.allocator() else std.heap.smp_allocator;
+
+    var moves: std.ArrayList(Move) = .empty;
+    defer moves.deinit(allocator);
+    try readInput(allocator, &moves);
 
     const res1 = part1(moves.items);
     try stdout.print("{}\n", .{res1});
