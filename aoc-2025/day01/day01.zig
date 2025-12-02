@@ -40,9 +40,9 @@ fn part2(moves: []const Move) u32 {
     for (moves) |move| {
         switch (move.dir) {
             .L => {
-                const remainder: usize = @intCast(@mod(move.distance, 100));
-                res += @intCast(@divTrunc(move.distance, 100));
                 const lastWasZero = pos == 0;
+                const remainder = @mod(move.distance, 100);
+                res += @intCast(@divTrunc(move.distance, 100));
                 pos -= @intCast(remainder);
                 if (pos <= 0 and !lastWasZero)
                     res += 1;
@@ -50,7 +50,7 @@ fn part2(moves: []const Move) u32 {
                     pos += 100;
             },
             .R => {
-                const remainder: usize = @intCast(@mod(move.distance, 100));
+                const remainder = @mod(move.distance, 100);
                 res += @intCast(@divTrunc(move.distance, 100));
                 pos += @intCast(remainder);
                 if (pos >= 100) {
