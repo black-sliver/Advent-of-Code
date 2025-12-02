@@ -63,11 +63,12 @@ fn readInput(allocator: std.mem.Allocator, ranges: *std.ArrayList(Range)) !void 
         if (line.len < 2) {
             return error.BadFormat;
         }
-        var range: Range = undefined;
         const p = std.mem.indexOfScalar(u8, line, '-') orelse return error.InvalidRange;
         const e = std.mem.lastIndexOfNone(u8, line, "\r\n") orelse continue;
-        range.first = try std.fmt.parseInt(u64, line[0..p], 10);
-        range.last = try std.fmt.parseInt(u64, line[p + 1 .. e + 1], 10);
+        const range: Range = .{
+            .first = try std.fmt.parseInt(u64, line[0..p], 10),
+            .last = try std.fmt.parseInt(u64, line[p + 1 .. e + 1], 10),
+        };
         try ranges.append(allocator, range);
     }
 }
