@@ -8,7 +8,7 @@ fn pass(data: []u8, cols: usize, stride: usize, comptime replace: bool) u32 {
         for (0..cols) |x| {
             if (data[x + y * stride] == '.')
                 continue;
-            var adject_blocked: usize = 0;
+            var adjacent_blocked: usize = 0;
             for (0..3) |off_y| {
                 for (0..3) |off_x| {
                     if (off_x == 1 and off_y == 1)
@@ -22,10 +22,10 @@ fn pass(data: []u8, cols: usize, stride: usize, comptime replace: bool) u32 {
                     if (y + off_y == rows + 1)
                         continue;
                     if (data[x + off_x - 1 + (y + off_y - 1) * stride] != '.')
-                        adject_blocked += 1;
+                        adjacent_blocked += 1;
                 }
             }
-            if (adject_blocked < 4) {
+            if (adjacent_blocked < 4) {
                 res += 1;
                 if (replace)
                     data[x + y * stride] = '.';
