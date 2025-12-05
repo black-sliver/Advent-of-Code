@@ -27,43 +27,27 @@ pub fn toTheRightSmaller(_: void, a: Range, b: Range) bool {
     return a.last < b.last; // this sorts the smaller range to the top
 }
 
-fn part2(ranges_in: []Range) usize {
+fn part2(ranges: []Range) usize {
     // merge ranges
-    var ranges = ranges_in;
-    var to_remove: usize = 0;
-    for (0..ranges.len) |_| { // NOTE: only 1 pass should be required
-        std.mem.sortUnstable(Range, ranges, {}, toTheRightSmaller);
-        std.debug.assert(ranges.len > to_remove);
-        ranges.len -= to_remove;
-        to_remove = 0;
-        for (0..ranges.len - 1) |i| {
-            for (i + 1..ranges.len) |j| {
-                // if they overlap: merge i into j and clear i
-                const source_range = &ranges[i];
-                const dest_range = &ranges[j];
-                if (source_range.first >= dest_range.first) {
-                    if (source_range.last <= dest_range.last) {
-                        // inside another one
-                        source_range.first = 0;
-                        source_range.last = 0;
-                        to_remove += 1;
-                        break;
-                    } else if (source_range.first <= dest_range.last + 1) {
-                        // extends another one to the right
-                        std.debug.assert(source_range.last > dest_range.last);
-                        dest_range.last = source_range.last;
-                        source_range.first = 0;
-                        source_range.last = 0;
-                        to_remove += 1;
-                        break;
-                    }
+    std.mem.sortUnstable(Range, ranges, {}, toTheRightSmaller);
+    for (0..ranges.len - 1) |i| {
+        for (i + 1..ranges.len) |j| {
+            // if they overlap: merge i into j and clear i
+            const source_range = &ranges[i];
+            const dest_range = &ranges[j];
+            if (source_range.first >= dest_range.first) {
+                if (source_range.last <= dest_range.last) {
+                    // inside another one
+                    source_range.first = 0xffffffffffffffff;
+                    break;
+                } else if (source_range.first <= dest_range.last + 1) {
+                    // extends another one to the right
+                    std.debug.assert(source_range.last > dest_range.last);
+                    dest_range.last = source_range.last;
+                    source_range.first = 0xffffffffffffffff;
+                    break;
                 }
             }
-        }
-        if (to_remove == 0) {
-            break;
-        } else {
-            std.debug.print("Warning: Expected to finish in 1 pass\n", .{});
         }
     }
     // sum up all ranges
