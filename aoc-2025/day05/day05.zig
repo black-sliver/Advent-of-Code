@@ -35,18 +35,16 @@ fn part2(ranges: []Range) usize {
             // if they overlap: merge i into j and clear i
             const source_range = &ranges[i];
             const dest_range = &ranges[j];
-            if (source_range.first >= dest_range.first) {
-                if (source_range.last <= dest_range.last) {
-                    // inside another one
-                    source_range.first = 0xffffffffffffffff;
-                    break;
-                } else if (source_range.first <= dest_range.last + 1) {
-                    // extends another one to the right
-                    std.debug.assert(source_range.last > dest_range.last);
-                    dest_range.last = source_range.last;
-                    source_range.first = 0xffffffffffffffff;
-                    break;
-                }
+            if (source_range.last <= dest_range.last) {
+                // inside another one
+                source_range.first = 0xffffffffffffffff;
+                break;
+            } else if (source_range.first <= dest_range.last + 1) {
+                // extends another one to the right
+                std.debug.assert(source_range.last > dest_range.last);
+                dest_range.last = source_range.last;
+                source_range.first = 0xffffffffffffffff;
+                break;
             }
         }
     }
