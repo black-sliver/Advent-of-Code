@@ -12,29 +12,29 @@ fn part1(allocator: std.mem.Allocator, data: []const u8) !u32 {
     if (height < 2) {
         return error.InvalidInput;
     }
-    var beams: std.ArrayList(usize) = .empty; // TODO: Set?
+    var beams: std.ArrayList(usize) = .empty;
     defer beams.deinit(allocator);
     try beams.ensureTotalCapacity(allocator, width);
-    try beams.append(allocator, start_x);
+    beams.appendAssumeCapacity(start_x);
     var res: u32 = 0;
     for (1..height) |y| {
-        for (0..beams.items.len) |i| {
+        var i: usize = 0;
+        while (i < beams.items.len) : (i += 1) {
             const beam_x = beams.items[i];
-            if (beam_x == 0xffffffffffffffff)
-                continue;
             if (data[y * stride + beam_x] == '^') {
                 // split it
                 if (std.mem.indexOfScalar(usize, beams.items, beam_x - 1) != null) {
                     if (std.mem.indexOfScalar(usize, beams.items, beam_x + 1) != null) {
                         // remove it
-                        beams.items[i] = 0xffffffffffffffff; // invalidate
+                        _ = beams.swapRemove(i);
+                        i -= 1;
                     } else {
                         beams.items[i] = beam_x + 1;
                     }
                 } else {
                     beams.items[i] = beam_x - 1;
                     if (std.mem.indexOfScalar(usize, beams.items, beam_x + 1) == null) {
-                        try beams.append(allocator, beam_x + 1);
+                        beams.appendAssumeCapacity(beam_x + 1);
                     }
                 }
                 res += 1;
