@@ -61,14 +61,13 @@ fn part2(allocator: std.mem.Allocator, data: []const u8) !u64 {
     beams[start_x] = 1;
 
     for (1..height) |y| {
-        var carry: u64 = 0;
         for (0..width) |x| {
-            beams[x] += carry;
-            carry = 0;
             if (beams[x] > 0) {
                 if (data[y * stride + x] == '^') {
                     beams[x - 1] += beams[x];
-                    carry = beams[x];
+                    beams[x + 1] += beams[x];
+                    // modifying x + 1 is not really great,
+                    // but it works because there is always space between 2 ^
                     beams[x] = 0;
                 }
             }
