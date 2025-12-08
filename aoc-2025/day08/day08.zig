@@ -7,17 +7,17 @@ const Coord = @Vector(3, F);
 const Connection = struct {
     a: usize,
     b: usize,
-    distance: F,
+    distance2: F,
 };
 
-fn getDistance(a: Coord, b: Coord) F {
+fn getDistance2(a: Coord, b: Coord) F {
     const d = a - b;
     const d2 = d * d;
-    return std.math.sqrt(@reduce(.Add, d2));
+    return @reduce(.Add, d2);
 }
 
 fn sortByDistance(_: void, a: Connection, b: Connection) bool {
-    return a.distance < b.distance;
+    return a.distance2 < b.distance2;
 }
 
 const IndexSet = std.AutoHashMap(usize, void);
@@ -36,7 +36,7 @@ fn findAllConnections(allocator: std.mem.Allocator, boxes: []const Coord) !std.A
             res.appendAssumeCapacity(.{
                 .a = i,
                 .b = j,
-                .distance = getDistance(boxes[i], boxes[j]),
+                .distance2 = getDistance2(boxes[i], boxes[j]),
             });
         }
     }
