@@ -141,9 +141,9 @@ fn findAllConnections(allocator: std.mem.Allocator, boxes: []const Coord) !std.A
 fn part2(allocator: std.mem.Allocator, boxes: []const Coord) !f64 {
     var connections = try findAllConnections(allocator, boxes);
     defer connections.deinit(allocator);
-    var sets: std.ArrayList(IndexSet) = .empty;
+    var sets: std.ArrayList(std.ArrayList(usize)) = .empty;
     defer sets.deinit(allocator);
-    defer for (sets.items) |*set| set.deinit();
+    defer for (sets.items) |*set| set.deinit(allocator);
     var set_map: SetMap = .init(allocator); // for each index points to one of the sets
     defer set_map.deinit();
 
@@ -159,35 +159,34 @@ fn part2(allocator: std.mem.Allocator, boxes: []const Coord) !f64 {
                 } else {
                     // found a and b -> merge sets[i] into sets[j]
                     last_mod = n;
-                    var it = sets.items[i].keyIterator();
-                    while (it.next()) |value| {
-                        try set_map.put(value.*, j);
-                        try sets.items[j].put(value.*, {});
+                    for (sets.items[i].items) |value| {
+                        try set_map.put(value, j);
+                        try sets.items[j].append(allocator, value);
                     }
                     // clear and remove sets[i]
-                    sets.items[i].clearRetainingCapacity(); //.clearAndFree();
+                    sets.items[i].clearRetainingCapacity();
                     if (i == sets.items.len - 1) {
-                        sets.items[i].deinit();
+                        sets.items[i].deinit(allocator);
                         _ = sets.orderedRemove(i);
                     }
                 }
             } else {
                 // found a -> insert b
                 last_mod = n;
-                try sets.items[i].put(connection.b, {});
+                try sets.items[i].append(allocator, connection.b);
                 try set_map.put(connection.b, i);
             }
         } else if (b_set_i) |i| {
             // found b -> insert a
             last_mod = n;
-            try sets.items[i].put(connection.a, {});
+            try sets.items[i].append(allocator, connection.a);
             try set_map.put(connection.a, i);
         } else {
             // both a and b new
             const i = sets.items.len;
-            try sets.append(allocator, IndexSet.init(allocator));
-            try sets.items[i].put(connection.a, {});
-            try sets.items[i].put(connection.b, {});
+            try sets.append(allocator, .empty);
+            try sets.items[i].append(allocator, connection.a);
+            try sets.items[i].append(allocator, connection.b);
             try set_map.put(connection.a, i);
             try set_map.put(connection.b, i);
         }
