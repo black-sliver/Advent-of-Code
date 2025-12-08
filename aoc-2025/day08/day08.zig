@@ -23,37 +23,34 @@ fn sortByDistance(_: void, a: Connection, b: Connection) bool {
 const IndexSet = std.AutoHashMap(usize, void);
 const SetMap = std.AutoHashMap(usize, usize);
 
-fn biggestSetFirst(_: void, a: IndexSet, b: IndexSet) bool {
-    return a.count() > b.count();
+fn findAllConnections(allocator: std.mem.Allocator, boxes: []const Coord) !std.ArrayList(Connection) {
+    // NOTE: majority of time is spent in this function.
+    // This could be improved by filtering what to add to the connection list.
+    if (boxes.len >= 4096) {
+        return error.TooMuchMemory;
+    }
+    var res: std.ArrayList(Connection) = .empty;
+    try res.ensureTotalCapacity(allocator, boxes.len * boxes.len / 2);
+    for (0..boxes.len) |i| {
+        for (i + 1..boxes.len) |j| {
+            res.appendAssumeCapacity(.{
+                .a = i,
+                .b = j,
+                .distance = getDistance(boxes[i], boxes[j]),
+            });
+        }
+    }
+    std.mem.sortUnstable(Connection, res.items, {}, sortByDistance);
+    return res;
 }
 
 // - part1 -
 
-fn findConnections(comptime n: usize, boxes: []const Coord) [n]Connection {
-    var found: usize = 0;
-    var connections: [n]Connection = undefined;
-    for (0..boxes.len) |i| {
-        for (i + 1..boxes.len) |j| {
-            const distance = getDistance(boxes[i], boxes[j]);
-            if (found < connections.len) {
-                connections[found] = .{ .a = i, .b = j, .distance = distance };
-                found += 1;
-                if (found == connections.len) {
-                    std.mem.sortUnstable(Connection, &connections, {}, sortByDistance);
-                }
-            } else {
-                if (distance < connections[n - 1].distance) {
-                    connections[n - 1] = .{ .a = i, .b = j, .distance = distance };
-                    // TODO: instead of sorting again, insert in the right place
-                    std.mem.sortUnstable(Connection, &connections, {}, sortByDistance);
-                }
-            }
-        }
-    }
-    return connections;
+fn biggestSetFirst(_: void, a: IndexSet, b: IndexSet) bool {
+    return a.count() > b.count();
 }
 
-fn findSets(allocator: std.mem.Allocator, comptime num_sets: usize, comptime num_connections: usize, connections: [num_connections]Connection, res: *[num_sets]IndexSet) !void {
+fn findSets(allocator: std.mem.Allocator, comptime num_sets: usize, comptime num_connections: usize, connections: []const Connection, res: *[num_sets]IndexSet) !void {
     var sets_used: usize = 0;
     var sets: [num_connections]IndexSet = undefined;
     defer for (num_sets..sets_used) |i| sets[i].deinit();
@@ -107,10 +104,9 @@ fn findSets(allocator: std.mem.Allocator, comptime num_sets: usize, comptime num
     std.mem.copyForwards(IndexSet, res, sets[0..num_sets]);
 }
 
-fn part1(allocator: std.mem.Allocator, comptime num_sets: usize, comptime num_connections: usize, boxes: []const Coord) !usize {
-    const connections = findConnections(num_connections, boxes);
+fn part1(allocator: std.mem.Allocator, comptime num_sets: usize, comptime num_connections: usize, connections: []const Connection) !usize {
     var sets: [num_sets]IndexSet = undefined;
-    try findSets(allocator, num_sets, num_connections, connections, &sets);
+    try findSets(allocator, num_sets, num_connections, connections[0..num_connections], &sets);
     defer for (&sets) |*set| set.deinit();
     var res: usize = 1;
     for (sets) |set| {
@@ -121,30 +117,7 @@ fn part1(allocator: std.mem.Allocator, comptime num_sets: usize, comptime num_co
 
 // - part2 -
 
-fn findAllConnections(allocator: std.mem.Allocator, boxes: []const Coord) !std.ArrayList(Connection) {
-    // NOTE: majority of time is spent in this function.
-    // This could be improved by filtering what to add to the connection list.
-    if (boxes.len >= 4096) {
-        return error.TooMuchMemory;
-    }
-    var res: std.ArrayList(Connection) = .empty;
-    try res.ensureTotalCapacity(allocator, boxes.len * boxes.len / 2);
-    for (0..boxes.len) |i| {
-        for (i + 1..boxes.len) |j| {
-            res.appendAssumeCapacity(.{
-                .a = i,
-                .b = j,
-                .distance = getDistance(boxes[i], boxes[j]),
-            });
-        }
-    }
-    std.mem.sortUnstable(Connection, res.items, {}, sortByDistance);
-    return res;
-}
-
-fn part2(allocator: std.mem.Allocator, boxes: []const Coord) !F {
-    var connections = try findAllConnections(allocator, boxes);
-    defer connections.deinit(allocator);
+fn part2(allocator: std.mem.Allocator, connections: []const Connection, boxes: []const Coord) !F {
     var sets: std.ArrayList(std.ArrayList(usize)) = .empty;
     defer sets.deinit(allocator);
     defer for (sets.items) |*set| set.deinit(allocator);
@@ -153,7 +126,7 @@ fn part2(allocator: std.mem.Allocator, boxes: []const Coord) !F {
 
     var last_mod: usize = 0;
 
-    for (connections.items, 0..) |connection, n| {
+    for (connections, 0..) |connection, n| {
         const a_set_i = set_map.get(connection.a);
         const b_set_i = set_map.get(connection.b);
         if (a_set_i) |i| {
@@ -209,7 +182,7 @@ fn part2(allocator: std.mem.Allocator, boxes: []const Coord) !F {
         }
     }
 
-    return boxes[connections.items[last_mod].a][0] * boxes[connections.items[last_mod].b][0];
+    return boxes[connections[last_mod].a][0] * boxes[connections[last_mod].b][0];
 }
 
 // - main -
@@ -247,9 +220,12 @@ pub fn main() !void {
 
     try readInput(allocator, &boxes);
 
-    const res1 = try part1(allocator, 3, 1000, boxes.items);
+    var connections = try findAllConnections(allocator, boxes.items);
+    defer connections.deinit(allocator);
+
+    const res1 = try part1(allocator, 3, 1000, connections.items);
     try stdout.print("{}\n", .{res1});
-    const res2 = try part2(allocator, boxes.items);
+    const res2 = try part2(allocator, connections.items, boxes.items);
     try stdout.print("{}\n", .{res2});
 }
 
@@ -277,9 +253,15 @@ const test_input = [_]Coord{
 };
 
 test "part1" {
-    try std.testing.expectEqual(40, try part1(std.testing.allocator, 3, 10, &test_input));
+    const allocator = std.testing.allocator;
+    var connections = try findAllConnections(allocator, &test_input);
+    defer connections.deinit(allocator);
+    try std.testing.expectEqual(40, try part1(allocator, 3, 10, connections.items));
 }
 
 test "part2" {
-    try std.testing.expectEqual(25272, try part2(std.testing.allocator, &test_input));
+    const allocator = std.testing.allocator;
+    var connections = try findAllConnections(allocator, &test_input);
+    defer connections.deinit(allocator);
+    try std.testing.expectEqual(25272, try part2(allocator, connections.items, &test_input));
 }
