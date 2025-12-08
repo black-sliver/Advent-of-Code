@@ -26,6 +26,7 @@ const SetMap = std.AutoHashMap(usize, usize);
 fn findAllConnections(allocator: std.mem.Allocator, boxes: []const Coord) !std.ArrayList(Connection) {
     // NOTE: majority of time is spent in this function.
     // This could be improved by filtering what to add to the connection list.
+    // There is gonna be an algorithm that requires us not to do this. Turns out it's Kruskal.
     if (boxes.len >= 4096) {
         return error.TooMuchMemory;
     }
