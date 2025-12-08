@@ -46,71 +46,65 @@ fn findAllConnections(allocator: std.mem.Allocator, boxes: []const Coord) !std.A
 
 // - part1 -
 
-fn biggestSetFirst(_: void, a: IndexSet, b: IndexSet) bool {
-    return a.count() > b.count();
+fn biggestSetFirst(_: void, a: std.ArrayList(usize), b: std.ArrayList(usize)) bool {
+    return a.items.len > b.items.len;
 }
 
-fn findSets(allocator: std.mem.Allocator, comptime num_sets: usize, comptime num_connections: usize, connections: []const Connection, res: *[num_sets]IndexSet) !void {
+fn findSets(allocator: std.mem.Allocator, comptime num_sets: usize, comptime num_connections: usize, connections: []const Connection, res: *[num_sets]std.ArrayList(usize)) !void {
     var sets_used: usize = 0;
-    var sets: [num_connections]IndexSet = undefined;
-    defer for (num_sets..sets_used) |i| sets[i].deinit();
+    var sets: [num_connections]std.ArrayList(usize) = undefined;
+    defer for (num_sets..sets_used) |i| sets[i].deinit(allocator);
     var set_map: SetMap = .init(allocator); // for each index points to one of the sets
     defer set_map.deinit();
     // create all sets
     for (connections) |connection| {
         const a_set_i = set_map.get(connection.a);
+        const b_set_i = set_map.get(connection.b);
         if (a_set_i) |i| {
-            // found a -> insert b
-            try sets[i].put(connection.b, {});
-            try set_map.put(connection.b, i);
-        } else {
-            const b_set_i = set_map.get(connection.b);
-            if (b_set_i) |i| {
-                // found b -> insert a
-                try sets[i].put(connection.a, {});
-                try set_map.put(connection.a, i);
-            } else {
-                // both a and b new
-                const i = sets_used;
-                sets_used += 1;
-                sets[i] = IndexSet.init(allocator);
-                try sets[i].put(connection.a, {});
-                try sets[i].put(connection.b, {});
-                try set_map.put(connection.a, i);
-                try set_map.put(connection.b, i);
-            }
-        }
-    }
-    // merge all sets
-    outer: for (0..sets_used) |i| {
-        var it = sets[i].keyIterator();
-        while (it.next()) |check| {
-            for (i + 1..sets_used) |j| {
-                if (sets[j].contains(check.*)) {
-                    // merge sets[i] into sets[j]
-                    var it2 = sets[i].keyIterator();
-                    while (it2.next()) |value| {
-                        try sets[j].put(value.*, {});
+            if (b_set_i) |j| {
+                if (i == j) {
+                    // already the same set
+                } else {
+                    // found a and b - merge sets[i] into sets[j]
+                    for (sets[i].items) |value| {
+                        try set_map.put(value, j);
+                        try sets[j].append(allocator, value);
                     }
                     // clear sets[i]
                     sets[i].clearRetainingCapacity();
-                    continue :outer;
                 }
+            } else {
+                // found a -> insert b
+                try sets[i].append(allocator, connection.b);
+                try set_map.put(connection.b, i);
             }
+        } else if (b_set_i) |i| {
+            // found b -> insert a
+            try sets[i].append(allocator, connection.a);
+            try set_map.put(connection.a, i);
+        } else {
+            // both a and b new
+            const i = sets_used;
+            sets_used += 1;
+            sets[i] = .empty;
+            try sets[i].append(allocator, connection.a);
+            try sets[i].append(allocator, connection.b);
+            try set_map.put(connection.a, i);
+            try set_map.put(connection.b, i);
         }
     }
     // sort and return top N
-    std.mem.sortUnstable(IndexSet, sets[0..sets_used], {}, biggestSetFirst);
-    std.mem.copyForwards(IndexSet, res, sets[0..num_sets]);
+    std.mem.sortUnstable(std.ArrayList(usize), sets[0..sets_used], {}, biggestSetFirst);
+    std.mem.copyForwards(std.ArrayList(usize), res, sets[0..num_sets]);
 }
 
 fn part1(allocator: std.mem.Allocator, comptime num_sets: usize, comptime num_connections: usize, connections: []const Connection) !usize {
-    var sets: [num_sets]IndexSet = undefined;
+    var sets: [num_sets]std.ArrayList(usize) = undefined;
     try findSets(allocator, num_sets, num_connections, connections[0..num_connections], &sets);
-    defer for (&sets) |*set| set.deinit();
+    defer for (&sets) |*set| set.deinit(allocator);
     var res: usize = 1;
     for (sets) |set| {
-        res *= set.count();
+        res *= set.items.len;
     }
     return res;
 }
