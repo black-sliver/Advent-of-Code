@@ -1,14 +1,16 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-const Coord = @Vector(3, f64);
+const F = f32;
+
+const Coord = @Vector(3, F);
 const Connection = struct {
     a: usize,
     b: usize,
-    distance: f64,
+    distance: F,
 };
 
-fn getDistance(a: Coord, b: Coord) f64 {
+fn getDistance(a: Coord, b: Coord) F {
     const d = a - b;
     const d2 = d * d;
     return std.math.sqrt(@reduce(.Add, d2));
@@ -120,6 +122,8 @@ fn part1(allocator: std.mem.Allocator, comptime num_sets: usize, comptime num_co
 // - part2 -
 
 fn findAllConnections(allocator: std.mem.Allocator, boxes: []const Coord) !std.ArrayList(Connection) {
+    // NOTE: majority of time is spent in this function.
+    // This could be improved by filtering what to add to the connection list.
     if (boxes.len >= 4096) {
         return error.TooMuchMemory;
     }
@@ -138,7 +142,7 @@ fn findAllConnections(allocator: std.mem.Allocator, boxes: []const Coord) !std.A
     return res;
 }
 
-fn part2(allocator: std.mem.Allocator, boxes: []const Coord) !f64 {
+fn part2(allocator: std.mem.Allocator, boxes: []const Coord) !F {
     var connections = try findAllConnections(allocator, boxes);
     defer connections.deinit(allocator);
     var sets: std.ArrayList(std.ArrayList(usize)) = .empty;
@@ -157,8 +161,13 @@ fn part2(allocator: std.mem.Allocator, boxes: []const Coord) !f64 {
                 if (i == j) {
                     // already the same set
                 } else {
-                    // found a and b -> merge sets[i] into sets[j]
-                    last_mod = n;
+                    // found a and b
+                    // if new sets has all boxes in it, we are done
+                    if (sets.items[i].items.len + sets.items[j].items.len == boxes.len) {
+                        last_mod = n;
+                        break;
+                    }
+                    // otherwise merge sets[i] into sets[j]
                     for (sets.items[i].items) |value| {
                         try set_map.put(value, j);
                         try sets.items[j].append(allocator, value);
@@ -172,15 +181,23 @@ fn part2(allocator: std.mem.Allocator, boxes: []const Coord) !f64 {
                 }
             } else {
                 // found a -> insert b
-                last_mod = n;
                 try sets.items[i].append(allocator, connection.b);
                 try set_map.put(connection.b, i);
+                // if sets[i] has all boxes in it, we are done
+                if (sets.items[i].items.len == boxes.len) {
+                    last_mod = n;
+                    break;
+                }
             }
         } else if (b_set_i) |i| {
             // found b -> insert a
-            last_mod = n;
             try sets.items[i].append(allocator, connection.a);
             try set_map.put(connection.a, i);
+            // if sets[i] has all boxes in it, we are done
+            if (sets.items[i].items.len == boxes.len) {
+                last_mod = n;
+                break;
+            }
         } else {
             // both a and b new
             const i = sets.items.len;
@@ -205,9 +222,9 @@ fn readInput(allocator: std.mem.Allocator, boxes: *std.ArrayList(Coord)) !void {
     while (try reader.interface.takeDelimiter('\n')) |line| {
         var it = std.mem.splitScalar(u8, line, ',');
         const box = Coord{
-            try std.fmt.parseFloat(f64, it.next() orelse return error.InvalidInput),
-            try std.fmt.parseFloat(f64, it.next() orelse return error.InvalidInput),
-            try std.fmt.parseFloat(f64, it.next() orelse return error.InvalidInput),
+            try std.fmt.parseFloat(F, it.next() orelse return error.InvalidInput),
+            try std.fmt.parseFloat(F, it.next() orelse return error.InvalidInput),
+            try std.fmt.parseFloat(F, it.next() orelse return error.InvalidInput),
         };
         try boxes.append(allocator, box);
     }
