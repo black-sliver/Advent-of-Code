@@ -9,6 +9,7 @@ testinput.txt
 # build output
 *.o
 *.wasm
+a.out
 
 # temp
 *~

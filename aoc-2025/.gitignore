@@ -6,6 +6,10 @@ zig-out/
 
 # local build-exe output
 /day[0-2][0-9]/day[0-2][0-9]
+/day[0-2][0-9]/day[0-2][0-9]v*
 
 # cache
 .zig-cache/
+
+# intermediates
+*.c
