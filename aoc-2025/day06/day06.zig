@@ -147,13 +147,20 @@ pub fn main() !void {
     try stdout.print("{}\n", .{res2});
 }
 
-const test_data = [_]Problem{
-    .{ .op = .Times, .numbers = &[_]u32{ 123, 45, 6 } },
-    .{ .op = .Plus, .numbers = &[_]u32{ 328, 64, 98 } },
-    .{ .op = .Times, .numbers = &[_]u32{ 51, 387, 215 } },
-    .{ .op = .Plus, .numbers = &[_]u32{ 64, 23, 314 } },
-};
-
 test "solveAll" {
+    const allocator = std.testing.allocator;
+    var test_data = [_]Problem{
+        .{ .op = .Times, .numbers = .empty },
+        .{ .op = .Plus, .numbers = .empty },
+        .{ .op = .Times, .numbers = .empty },
+        .{ .op = .Plus, .numbers = .empty },
+    };
+    defer for (&test_data) |*problem| problem.deinit(allocator);
+
+    try test_data[0].numbers.appendSlice(allocator, &[_]u32{ 123, 45, 6 });
+    try test_data[1].numbers.appendSlice(allocator, &[_]u32{ 328, 64, 98 });
+    try test_data[2].numbers.appendSlice(allocator, &[_]u32{ 51, 387, 215 });
+    try test_data[3].numbers.appendSlice(allocator, &[_]u32{ 64, 23, 314 });
+
     try std.testing.expectEqual(4277556, solveAll(&test_data));
 }
