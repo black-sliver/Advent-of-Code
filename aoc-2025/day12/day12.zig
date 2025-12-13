@@ -202,7 +202,8 @@ pub fn main() !void {
     try readInput(allocator, &trees, &pieces);
 
     const res1 = part1(trees.items, &pieces);
-    try stdout.print("{}\n", .{res1});
+    try stdout.print("day12 pt.1: {}\n", .{res1});
+    try stdout.print("day12 pt.2: claim it!\n", .{});
 }
 
 const test_pieces = [_]Piece {

@@ -113,9 +113,9 @@ pub fn main() !void {
     try readInput(allocator, &coords);
 
     const res1 = part1(coords.items);
-    try stdout.print("{}\n", .{res1});
+    try stdout.print("day09 pt.1: {}\n", .{res1});
     const res2 = part2(coords.items);
-    try stdout.print("{}\n", .{res2});
+    try stdout.print("day09 pt.2: {}\n", .{res2});
 }
 
 const test_input = [_]Coord{

@@ -66,9 +66,9 @@ pub fn main() !void {
     try readInput(allocator, &banks);
 
     const res1 = part1(banks.items);
-    try stdout.print("{}\n", .{res1});
+    try stdout.print("day03 pt.1: {}\n", .{res1});
     const res2 = part2(banks.items);
-    try stdout.print("{}\n", .{res2});
+    try stdout.print("day03 pt.2: {}\n", .{res2});
 }
 
 const test_input = [_][]const u8 {

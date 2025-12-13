@@ -219,9 +219,9 @@ pub fn main() !void {
     defer connections.deinit(allocator);
 
     const res1 = try part1(allocator, 3, 1000, connections.items);
-    try stdout.print("{}\n", .{res1});
+    try stdout.print("day08 pt.1: {}\n", .{res1});
     const res2 = try part2(allocator, connections.items, boxes.items);
-    try stdout.print("{}\n", .{res2});
+    try stdout.print("day08 pt.2: {}\n", .{res2});
 }
 
 const test_input = [_]Coord{

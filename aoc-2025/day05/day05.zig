@@ -97,9 +97,9 @@ pub fn main() !void {
     try readInput(allocator, &ranges, &ids);
 
     const res1 = part1(ranges.items, ids.items);
-    try stdout.print("{}\n", .{res1});
+    try stdout.print("day05 pt.1: {}\n", .{res1});
     const res2 = part2(ranges.items);
-    try stdout.print("{}\n", .{res2});
+    try stdout.print("day05 pt.2: {}\n", .{res2});
 }
 
 const test_ranges = [_]Range{

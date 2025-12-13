@@ -71,9 +71,9 @@ pub fn main() !void {
     const cols = std.mem.indexOfScalar(u8, data, '\n') orelse @panic("no line break");
 
     const res1 = part1(data, cols, cols + 1);
-    try stdout.print("{}\n", .{res1});
+    try stdout.print("day04 pt.1: {}\n", .{res1});
     const res2 = part2(data, cols, cols + 1);
-    try stdout.print("{}\n", .{res2});
+    try stdout.print("day04 pt.2: {}\n", .{res2});
 }
 
 const test_input =

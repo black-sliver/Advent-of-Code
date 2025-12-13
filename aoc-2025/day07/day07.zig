@@ -102,9 +102,9 @@ pub fn main() !void {
     defer allocator.free(data);
 
     const res1 = try part1(allocator, data);
-    try stdout.print("{}\n", .{res1});
+    try stdout.print("day07 pt.1: {}\n", .{res1});
     const res2 = try part2(allocator, data);
-    try stdout.print("{}\n", .{res2});
+    try stdout.print("day07 pt.2: {}\n", .{res2});
 }
 
 const test_input =

@@ -234,9 +234,9 @@ pub fn main() !void {
     try readInput(allocator, &machines);
 
     const res1 = part1(machines.items);
-    try stdout.print("{}\n", .{res1});
+    try stdout.print("day10 pt.1: {}\n", .{res1});
     const res2 = try part2(machines.items);
-    try stdout.print("{}\n", .{res2});
+    try stdout.print("day10 pt.2: {}\n", .{res2});
 }
 
 const test_data =

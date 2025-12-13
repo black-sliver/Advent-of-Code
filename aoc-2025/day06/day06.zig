@@ -137,14 +137,14 @@ pub fn main() !void {
 
     try readInput1(allocator, &problems);
     const res1 = solveAll(problems.items);
-    try stdout.print("{}\n", .{res1});
+    try stdout.print("day06 pt.1: {}\n", .{res1});
 
     for (problems.items) |*problem| problem.deinit(allocator);
     problems.clearRetainingCapacity();
 
     try readInput2(allocator, &problems);
     const res2 = solveAll(problems.items);
-    try stdout.print("{}\n", .{res2});
+    try stdout.print("day06 pt.2: {}\n", .{res2});
 }
 
 test "solveAll" {

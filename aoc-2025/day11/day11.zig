@@ -88,13 +88,13 @@ pub fn main() !void {
     try readInput(allocator, &nodes);
 
     const res1 = part1(&nodes, "you".*);
-    try stdout.print("{}\n", .{res1});
+    try stdout.print("day11 pt.1: {}\n", .{res1});
     try stdout.flush();
 
     var cache: Cache = .init(allocator);
     defer cache.deinit();
     const res2 = try part2(&nodes, &cache, "svr".*, false, false);
-    try stdout.print("{}\n", .{res2});
+    try stdout.print("day11 pt.2: {}\n", .{res2});
 }
 
 const test_data =
