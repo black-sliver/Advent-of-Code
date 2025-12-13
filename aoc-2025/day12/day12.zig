@@ -112,7 +112,6 @@ pub fn main() !void {
 
     var trees: std.ArrayList(Tree) = .empty;
     var pieces: [6]Piece = std.mem.zeroes([6]Piece);
-    // @memset(&pieces, );
     defer trees.deinit(allocator);
 
     try readInput(allocator, &trees, &pieces);
