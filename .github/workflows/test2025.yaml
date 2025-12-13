@@ -1,0 +1,27 @@
+name: 'Test 2025'
+on:
+  push:
+    paths:
+      - 'aoc-2025/**'
+      - '.github/workflows/test2025.yaml'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5.0.0
+      - uses: mlugg/setup-zig@v2.0.5
+        with:
+          version: 0.15.2
+      - name: Install Dependencies (apt)
+        run: sudo apt install libz3-dev
+      - name: Build-Test
+        run: |
+          cd aoc-2025
+          zig build-exe -OReleaseFast main.zig -lc -lz3
+      - name: Run Tests
+        run: |
+          cd aoc-2025
+          zig test main.zig -lc -lz3
+
