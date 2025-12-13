@@ -8,7 +8,7 @@ const Tree = struct {
     pieces: [6]u8,
 };
 
-fn canFit(width: u32, height: u32, remaining_pieces: [6]u8, shapes: *const [6] Piece, tiles: *const [6]u8) !bool {
+fn canFit(width: u32, height: u32, remaining_pieces: [6]u8, shapes: *const [6] Piece, tiles: *const [6]u8) bool {
     var remaining_piece_count: u32 = 0;
     var remaining_tiles: u32 = 0;
     for (remaining_pieces, 0..) |count, index| {
@@ -23,21 +23,106 @@ fn canFit(width: u32, height: u32, remaining_pieces: [6]u8, shapes: *const [6] P
     if ((width / 3) * (height / 3) >= remaining_piece_count) {
         return true;
     }
-    // TODO: actually fit
+    // actually fit
     // this is not required for actual input.txt :thinking:
     // there was this whole plan of splitting the grid into rows and columns and recursing into it...
     // another option would be to guess from the fill factor of pre-merged shapes (e.g. 3 + 5 + 3 has 100%)
-    _ = shapes;
-    std.debug.print("maybe fits\n", .{});
-    return error.NotImplemented;
+    var buf: [4096]u8 = undefined;
+    var fbo: std.heap.FixedBufferAllocator = .init(&buf);
+    var allocator = fbo.allocator();
+    var grid: []bool = allocator.alloc(bool, width * height) catch @panic("Buffer too small");
+    @memset(grid, false);
+    return canFitDFS(width, height, &grid, remaining_pieces, shapes);
 }
 
-fn part1(trees: []const Tree, shapes: *const [6] Piece) !usize {
+fn canFitDFS(width: usize, height: usize, grid: *[]bool, remaining_pieces: [6]u8, shapes: *const [6] Piece) bool {
+    // Read above. This is just to solve the sample input.
+    var piece: usize = undefined;
+    for (0..remaining_pieces.len) |i| {
+        if (remaining_pieces[i] > 0) {
+            piece = i;
+            break;
+        }
+    } else {
+        return true; // all pieces placed
+    }
+    var new_remaining_pieces = remaining_pieces;
+    new_remaining_pieces[piece] -= 1;
+    // NOTE: we assume the shapes are symmetric enough to only need rotation, not flipping
+    for (0..4) |rot| {
+        const shape = rotatedShape(shapes[piece], rot);
+        const piece_height = shape.len;
+        const piece_width = shape[0].len;
+        // For every y position, we try to place it at every x position until one works. Very inefficient.
+        next_row: for (0 .. height - piece_height + 1) |start_y| {
+            next_pos: for (0 .. width - piece_width + 1) |start_x| {
+                for (0 .. piece_height) |piece_y| {
+                    for (0 .. piece_height) |piece_x| {
+                        if (shape[piece_y][piece_x] and grid.*[(start_y + piece_y) * width + (start_x + piece_x)])
+                            continue :next_pos; // can't fit
+                    }
+                }
+                // place it
+                for (0 .. piece_height) |piece_y| {
+                    for (0 .. piece_height) |piece_x| {
+                        grid.*[(start_y + piece_y) * width + (start_x + piece_x)] ^= shape[piece_y][piece_x];
+                    }
+                }
+                // next piece
+                if (canFitDFS(width, height, grid, new_remaining_pieces, shapes))
+                    return true;
+                // unplace it
+                for (0 .. piece_height) |piece_y| {
+                    for (0 .. piece_height) |piece_x| {
+                        grid.*[(start_y + piece_y) * width + (start_x + piece_x)] ^= shape[piece_y][piece_x];
+                    }
+                }
+                continue :next_row;
+            }
+        }
+    }
+    return false;
+}
+
+fn rotatedShape(shape: Piece, rot: usize) Piece {
+    var new_shape: Piece = undefined;
+    const h = shape.len;
+    const w = shape[0].len;
+    if (w != h) @panic("expected square pieces");
+    switch (rot) {
+        0 => return shape,
+        1 => {
+            for (0..h) |y| {
+                for (0..w) |x| {
+                    new_shape[y][x] = shape[x][y];
+                }
+            }
+        },
+        2 => {
+            for (0..h) |y| {
+                for (0..w) |x| {
+                    new_shape[y][x] = shape[h - y - 1][w - x - 1];
+                }
+            }
+        },
+        3 => {
+            for (0..h) |y| {
+                for (0..w) |x| {
+                    new_shape[y][x] = shape[w - x - 1][y];
+                }
+            }
+        },
+        else => @panic("Invalid rotation"),
+    }
+    return new_shape;
+}
+
+fn part1(trees: []const Tree, shapes: *const [6] Piece) usize {
     var shape_tile_count: [shapes.len]u8 = undefined;
     for (0..shapes.len) |i| shape_tile_count[i] = countTiles(shapes[i]);
     var sum: usize = 0;
     for (trees) |tree| {
-        sum += if (try canFit(
+        sum += if (canFit(
             tree.width,
             tree.height,
             tree.pieces,
@@ -116,7 +201,7 @@ pub fn main() !void {
 
     try readInput(allocator, &trees, &pieces);
 
-    const res1 = try part1(trees.items, &pieces);
+    const res1 = part1(trees.items, &pieces);
     try stdout.print("{}\n", .{res1});
 }
 
@@ -187,7 +272,7 @@ const test_tiles = [_]u8{
 };
 
 test "part1.0" {
-    try std.testing.expect(try canFit(
+    try std.testing.expect(canFit(
         test_trees[0].width,
         test_trees[0].height,
         test_trees[0].pieces,
@@ -197,7 +282,7 @@ test "part1.0" {
 }
 
 test "part1.1" {
-    try std.testing.expect(try canFit(
+    try std.testing.expect(canFit(
         test_trees[1].width,
         test_trees[1].height,
         test_trees[1].pieces,
@@ -207,7 +292,7 @@ test "part1.1" {
 }
 
 test "part1.2" {
-    try std.testing.expect(!try canFit(
+    try std.testing.expect(!canFit(
         test_trees[2].width,
         test_trees[2].height,
         test_trees[2].pieces,
